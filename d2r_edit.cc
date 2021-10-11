@@ -322,10 +322,10 @@ void Character::Parse(const char *const data, const int size) {
   cout << "Vitality: " << ReverseBits(d, 10) << endl;
 
   // Attributes end with the hex code 0x1ff.
-  while (attrib_bytes[ii] != 0x1ff) {
-   //cout << "Byte " << ii << ": " << hex << attrib_bytes[ii] << endl;
-   ++ii;
-  }
+  //while (attrib_bytes[ii] != 0x1ff) {
+  // cout << "Byte " << ii << ": " << hex << attrib_bytes[ii] << endl;
+  // ++ii;
+  //}
 }
 
 int main(const int argc, char *const argv[]) {
