@@ -278,17 +278,14 @@ class BitBuffer {
       // We have now consumed num_bits from this byte.
       bits_remaining_ -= num_read_bits;
       
-      //tie(r, num_read) = ReadBitsInternal(sizeof(char) << 3);
       num_read_bits = num_bits - num_read_bits;
       if (num_read_bits > 0) {
         //cout << "Reading " << num_bits << endl;
         r <<= num_read_bits;
         r |= ReadBits(num_read_bits);
       }
-      //r = ReverseBits(r, num_bits);
       return r;
   }
-  //private:
 
   private:
     const char *data_;
@@ -300,7 +297,6 @@ void Character::Parse(const char *const data, const int size) {
   d2s_t *pdata = (d2s_t *)(data);
 
   const int stats_size = size - kHeaderSize;
-
   unsigned short *attrib_bytes = (unsigned short *)pdata->stats;
 
   // Skip the first 16 bits - '0x6667'
@@ -308,9 +304,8 @@ void Character::Parse(const char *const data, const int size) {
   int ii = 0;
   BitBuffer b((char *)attrib_bytes);
 
-
   uint16_t d = b.ReadBits(9);
-//  cout << "Val: " << ReverseBits(d, 9) << endl;
+  //  cout << "Val: " << ReverseBits(d, 9) << endl;
   d = b.ReadBits(10);
   cout << "Strength: " << ReverseBits(d, 10) << endl;
 
