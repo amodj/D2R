@@ -1,4 +1,5 @@
 #include <bitset>
+#include <cstring>
 #include <functional>
 #include <fcntl.h>
 #include <arpa/inet.h>
@@ -15,7 +16,7 @@ using namespace std::placeholders;
 namespace {
   // Return litte-endian of a given integer.
   template <typename T>
-  T LittleEndian(const T num) { 
+  T LittleEndian(const T num) {
     T le = 0;
     for (int ii = 0; ii < sizeof(T); ++ii) {
       unsigned char b = num >> ((sizeof(T) - ii - 1) << 3) & 0xff;
@@ -52,22 +53,34 @@ unsigned int LittleEndian(unsigned int num);
   unsigned int ReverseBits(const unsigned int in_num, const int num_bits) {
     unsigned int result = 0;
     unsigned int num = in_num;
-    //result = num << ((sizeof(unsigned int) << 3) - num_bits);
-    int b = num_bits;
-    for (int ii = 0; ii < b; ++ii) {
+    for (int ii = 0; ii < num_bits; ++ii) {
        result <<= 1;
        result |= (num & 0x01);
        num >>= 1;
-    //   cout << dec << ii << " Inter: " << ToBinaryString(result) << endl;
     }
-    //cout << "In: " << ToBinaryString(in_num) << " Rev: " << ToBinaryString(result) << endl; 
-    return result;  
+    return result;
   }
 } // anonymous namespace.
 
 static const int kHeaderSize = 765;
 static const int kCksumOffset = 12;
 static const int kCksumSize = sizeof(int);
+static const int kNameOffset = 20; // Name is 20 bytes from the start.
+static const int kNameLen = 16; // Max length of the name is 16 bytes.
+static const int kClassOffset = 40; // Class is 40 bytes from the start.
+static const int kClassLen = 1;
+
+static const int kAttribIdLen = 9; // Attributes are stored in 9 bits.
+
+string kClasses[] = {
+  "Amazon",
+  "Sorceress",
+  "Necromancer",
+  "Paladin",
+  "Barbarian",
+  "Druid",
+  "Assasin"
+};
 
 string kAttributes[] = {
   "Strength",
@@ -117,15 +130,20 @@ class Character {
     Character(const char *data, const int size);
     ~Character() = default;
 
+    void Print();
+
   private:
     void Parse(const char *data, const int size);
 
   private:
     // Name of the character.
     string name_;
-    
+
+    // Class of the character.
+    string class_;
+
     // Map from attribute to the value of the attribute.
-    unordered_map<int, int> attrib_map_;
+    unordered_map<uint16_t, unsigned int> attrib_map_;
 };
 
 class D2SEditor {
@@ -135,9 +153,9 @@ class D2SEditor {
 
    // Write new checksum of the file to the file.
    void WriteNewChecksum();
-   
+
    // Print the character stats.
-   void PrintStats();
+   void PrintChar();
 
  private:
    // Get the checksum of 'data_' using the Diablo-2 algo.
@@ -166,9 +184,10 @@ class D2SEditor {
 D2SEditor::D2SEditor(const string& filename) {
   fd_ = Open(filename.c_str());
   fsz_ = GetFileSize(filename.c_str());
-  
+
   ReadData();
   ParseChar();
+  PrintChar();
 }
 
 D2SEditor::~D2SEditor() {
@@ -194,6 +213,12 @@ void D2SEditor::ParseChar() {
   c_ = new Character(data_, fsz_);
 }
 
+void D2SEditor::PrintChar() {
+  if (c_) {
+    c_->Print();
+  }
+}
+
 int D2SEditor::GetD2Checksum() {
    int cksum = 0;
    int total_bytes_read = 0;
@@ -210,8 +235,8 @@ int D2SEditor::GetD2Checksum() {
 
 void D2SEditor::WriteNewChecksum() {
   const int cksum = GetD2Checksum();
-  cout << "File checksum: " << hex << cksum << endl;
- 
+  //cout << "File checksum: " << hex << cksum << endl;
+
   if (lseek(fd_, kCksumOffset, SEEK_SET) != kCksumOffset) {
     cout << "Unable to write checksum to file" << endl;
     exit(1);
@@ -227,23 +252,17 @@ Character::Character(const char *const data, const int size) {
   Parse(data, size);
 }
 
-typedef struct __attribute__((__packed__)) {
-   unsigned int attrib_id_ : 9;
-} attrib_id_t;
-
-
 class BitBuffer {
   public:
     explicit BitBuffer(char *data) :
        data_(data),
-       bits_remaining_(0) {       
-      
+       bits_remaining_(0) {
+
     }
     ~BitBuffer() = default;
 
     unsigned int ReadBits(const int num_bits) {
-      //cout << " -- Reading " << dec << num_bits << " bits " << endl;
-      unsigned int r = 0; 
+      unsigned int r = 0;
       if (num_bits == 0) {
         return r;
       }
@@ -256,7 +275,7 @@ class BitBuffer {
         ++data_;
         bits_remaining_ = 8;
       }
-      
+
       int num_read_bits = num_bits;
       if (num_read_bits > bits_remaining_) {
         num_read_bits = bits_remaining_;
@@ -267,20 +286,16 @@ class BitBuffer {
         mask <<= 1;
         mask |= 0x01;
       }
-     
-      //cout << "Mask: " << hex << mask << endl;
+
       const int shift = bits_remaining_ - num_read_bits;
-      //cout << "Shift: " << dec << shift << " B: " << bits_remaining_
-      //     << " C: " << num_read_bits << endl;
-      r = cur_ >> (bits_remaining_ - num_read_bits);   
+      r = cur_ >> (bits_remaining_ - num_read_bits);
       r &= mask;
-     
+
       // We have now consumed num_bits from this byte.
       bits_remaining_ -= num_read_bits;
-      
+
       num_read_bits = num_bits - num_read_bits;
       if (num_read_bits > 0) {
-        //cout << "Reading " << num_bits << endl;
         r <<= num_read_bits;
         r |= ReadBits(num_read_bits);
       }
@@ -296,30 +311,26 @@ class BitBuffer {
 void Character::Parse(const char *const data, const int size) {
   d2s_t *pdata = (d2s_t *)(data);
 
-  const int stats_size = size - kHeaderSize;
-  unsigned short *attrib_bytes = (unsigned short *)pdata->stats;
+  // Parse some of the header.
+  char *header = pdata->header;
 
+  // Parse the name and class of the character.
+  name_ = string(pdata->header + kNameOffset);
+  class_ = kClasses[pdata->header[kClassOffset]];
+
+  unsigned short *attrib_bytes = (unsigned short *)pdata->stats;
   // Skip the first 16 bits - '0x6667'
   ++attrib_bytes;
-  int ii = 0;
+
   BitBuffer b((char *)attrib_bytes);
 
-  uint16_t d = b.ReadBits(9);
-  //  cout << "Val: " << ReverseBits(d, 9) << endl;
-  d = b.ReadBits(10);
-  cout << "Strength: " << ReverseBits(d, 10) << endl;
-
-  b.ReadBits(9);
-  d = b.ReadBits(10);
-  cout << "Energy: " << ReverseBits(d, 10) << endl;
-
-  b.ReadBits(9);
-  d = b.ReadBits(10);
-  cout << "Dex: " << ReverseBits(d, 10) << endl;
-
-  b.ReadBits(9);
-  d = b.ReadBits(10);
-  cout << "Vitality: " << ReverseBits(d, 10) << endl;
+  uint16_t attrib;
+  unsigned int val;
+  for (int ii = 0; ii < 4; ++ii) {
+    attrib = ReverseBits(b.ReadBits(kAttribIdLen), kAttribIdLen);
+    val = ReverseBits(b.ReadBits(kAttribLen[attrib]), kAttribLen[attrib]);
+    attrib_map_[attrib] = val;
+  }
 
   // Attributes end with the hex code 0x1ff.
   //while (attrib_bytes[ii] != 0x1ff) {
@@ -328,15 +339,27 @@ void Character::Parse(const char *const data, const int size) {
   //}
 }
 
+void Character::Print() {
+  cout << "---------------------------- " << endl;
+  cout << "Name: " << name_ << endl;
+  cout << "Class: " << class_ << endl;
+
+  for (auto attrib : attrib_map_) {
+    cout << kAttributes[attrib.first] << ": " << attrib.second << endl;
+  }
+
+  cout << "---------------------------- " << endl;
+}
+
 int main(const int argc, char *const argv[]) {
   if (argc < 2) {
     cout << "Enter the file name for calculating checksum as the first argument" << endl;
     return 1;
   }
 
-  D2SEditor editor(argv[1]); 
-  editor.WriteNewChecksum(); 
-  
+  D2SEditor editor(argv[1]);
+  editor.WriteNewChecksum();
+
   return 0;
 }
 
