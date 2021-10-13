@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <iostream>
-#include <unordered_map>
+#include <map>
 #include <tuple>
 #include <sys/stat.h>
 #include <sstream>
@@ -71,7 +71,9 @@ static const int kClassOffset = 40; // Class is 40 bytes from the start.
 static const int kClassLen = 1;
 
 static const int kAttribIdLen = 9; // Attributes are stored in 9 bits.
+static const int kInvalidAttrib = 511; // 9 bits of all 1s.
 
+// Types of classes in D2R.
 string kClasses[] = {
   "Amazon",
   "Sorceress",
@@ -82,13 +84,14 @@ string kClasses[] = {
   "Assasin"
 };
 
-string kAttributes[] = {
+// Attributes of a character.
+static const string kAttributes[] = {
   "Strength",
   "Engergy",
   "Dexterity",
   "Vitality",
-  "Unused",
-  "Unused",
+  "Stats left",
+  "Skills left",
   "HP",
   "Max HP",
   "Mana",
@@ -101,13 +104,14 @@ string kAttributes[] = {
   "Stash Gold"
 };
 
-int kAttribLen[] = {
+// Lengths of the attributes stored in the file.
+static const int kAttribLen[] = {
   10, // Strength
   10, // Energy
   10, // Dex
   10, // Vit
-  10, // Unused
-  8, // Unused
+  10, // Stats left
+  8, // Skills left
   21, // HP
   21, // Max HP
   21, // Mana
@@ -118,6 +122,28 @@ int kAttribLen[] = {
   32, // Experience,
   25, // Gold
   25 // Stashed Gold
+};
+
+// Attribute values obtained should be divided (reading) or
+// multiplied (writing) by the respective number to get the
+// real value.
+static const int kAttribTransform[] = {
+  1, // Strength
+  1, // Energy
+  1, // Dex
+  1, // Vit
+  1, // Stats left
+  1, // Skills left
+  256, // HP
+  256, // Max HP
+  256, // Mana
+  256, // Max Mana
+  256, // Stamina
+  256, // Max stamina
+  1, // Level
+  1, // Experience,
+  1, // Gold
+  1 // Stashed Gold
 };
 
 typedef struct __attribute__((__packed__)) {
@@ -143,7 +169,7 @@ class Character {
     string class_;
 
     // Map from attribute to the value of the attribute.
-    unordered_map<uint16_t, unsigned int> attrib_map_;
+    map<uint16_t, unsigned int> attrib_map_;
 };
 
 class D2SEditor {
@@ -270,8 +296,7 @@ class BitBuffer {
       if (bits_remaining_ == 0) {
         // We need to read from the next byte.
         cur_ = ReverseBits(data_[0], sizeof(char) << 3);
-        //cout << "Refreshed current: " << ToBinaryString(cur_) << endl;
-        // Advance the pointer.
+        // Advance the pointer to the next byte.
         ++data_;
         bits_remaining_ = 8;
       }
@@ -281,12 +306,14 @@ class BitBuffer {
         num_read_bits = bits_remaining_;
       }
 
+      // Create a mask to remove unwanted bits from the byte.
       unsigned int mask = 0x0;
       for (int ii = 0; ii < num_read_bits; ++ii) {
         mask <<= 1;
         mask |= 0x01;
       }
 
+      // Extract the required bits from the byte.
       const int shift = bits_remaining_ - num_read_bits;
       r = cur_ >> (bits_remaining_ - num_read_bits);
       r &= mask;
@@ -295,6 +322,9 @@ class BitBuffer {
       bits_remaining_ -= num_read_bits;
 
       num_read_bits = num_bits - num_read_bits;
+      // We still need to read more bits, but we will have to read
+      // the next by first. Also left shift the bits that we read
+      // to make space of the remaining bits that we will read.
       if (num_read_bits > 0) {
         r <<= num_read_bits;
         r |= ReadBits(num_read_bits);
@@ -303,8 +333,13 @@ class BitBuffer {
   }
 
   private:
+    // Pointer to the next byte to read.
     const char *data_;
+
+    // Number of bits remaining in the current byte.
     int bits_remaining_;
+
+    // The current byte.
     unsigned char cur_;
 };
 
@@ -324,19 +359,19 @@ void Character::Parse(const char *const data, const int size) {
 
   BitBuffer b((char *)attrib_bytes);
 
-  uint16_t attrib;
-  unsigned int val;
-  for (int ii = 0; ii < 4; ++ii) {
-    attrib = ReverseBits(b.ReadBits(kAttribIdLen), kAttribIdLen);
-    val = ReverseBits(b.ReadBits(kAttribLen[attrib]), kAttribLen[attrib]);
-    attrib_map_[attrib] = val;
-  }
+  for (;;) {
+    uint16_t attrib;
+    unsigned int val;
 
-  // Attributes end with the hex code 0x1ff.
-  //while (attrib_bytes[ii] != 0x1ff) {
-  // cout << "Byte " << ii << ": " << hex << attrib_bytes[ii] << endl;
-  // ++ii;
-  //}
+    attrib = ReverseBits(b.ReadBits(kAttribIdLen), kAttribIdLen);
+    if (attrib == kInvalidAttrib) {
+      // Not the most correct way to do this, but it will work fine because although attributes
+      // are stored in 9 bits, only 4 are ever really used.
+      break;
+    }
+    val = ReverseBits(b.ReadBits(kAttribLen[attrib]), kAttribLen[attrib]);
+    attrib_map_[attrib] = val / kAttribTransform[attrib];
+  }
 }
 
 void Character::Print() {
@@ -344,6 +379,7 @@ void Character::Print() {
   cout << "Name: " << name_ << endl;
   cout << "Class: " << class_ << endl;
 
+  cout << "---------------------------- " << endl;
   for (auto attrib : attrib_map_) {
     cout << kAttributes[attrib.first] << ": " << attrib.second << endl;
   }
