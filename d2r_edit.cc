@@ -124,26 +124,26 @@ static const int kAttribLen[] = {
   25 // Stashed Gold
 };
 
-// Attribute values obtained should be divided (reading) or
-// multiplied (writing) by the respective number to get the
+// Attribute values obtained should be right-shifted (reading) or
+// left-shifted (writing) by the respective number to get the
 // real value.
-static const int kAttribTransform[] = {
-  1, // Strength
-  1, // Energy
-  1, // Dex
-  1, // Vit
-  1, // Stats left
-  1, // Skills left
-  256, // HP
-  256, // Max HP
-  256, // Mana
-  256, // Max Mana
-  256, // Stamina
-  256, // Max stamina
-  1, // Level
-  1, // Experience,
-  1, // Gold
-  1 // Stashed Gold
+static const uint8_t kAttribTransform[] = {
+  0, // Strength
+  0, // Energy
+  0, // Dex
+  0, // Vit
+  0, // Stats left
+  0, // Skills left
+  8, // HP
+  8, // Max HP
+  8, // Mana
+  8, // Max Mana
+  8, // Stamina
+  8, // Max stamina
+  0, // Level
+  0, // Experience,
+  0, // Gold
+  0 // Stashed Gold
 };
 
 typedef struct __attribute__((__packed__)) {
@@ -370,7 +370,7 @@ void Character::Parse(const char *const data, const int size) {
       break;
     }
     val = ReverseBits(b.ReadBits(kAttribLen[attrib]), kAttribLen[attrib]);
-    attrib_map_[attrib] = val / kAttribTransform[attrib];
+    attrib_map_[attrib] = val >> kAttribTransform[attrib];
   }
 }
 
