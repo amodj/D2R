@@ -13,6 +13,8 @@
 using namespace std;
 using namespace std::placeholders;
 
+const int edits[] = { 1023, 123, 512, 313};
+
 namespace {
   // Return litte-endian of a given integer.
   template <typename T>
@@ -153,16 +155,21 @@ typedef struct __attribute__((__packed__)) {
 
 class Character {
   public:
-    Character(const char *data, const int size);
+    Character(uint8_t *data, const int size);
     ~Character() = default;
 
     void Print();
 
-    void Write();
-  private:
-    void Parse(const char *data, const int size);
+    int WriteInto(uint8_t *buf);
 
   private:
+
+    void Parse(uint8_t *data, const int size);
+
+  private:
+    // Raw data of the character.
+    uint8_t *data_;
+
     // Name of the character.
     string name_;
 
@@ -196,9 +203,11 @@ class D2SEditor {
   // Parse the character stats.
   void ParseChar();
 
+  void WriteNewStats(const uint8_t *buf, int size);
+
  private:
    // File data cached in memory. These files are small, so this should be okay.
-   char *data_;
+   uint8_t *data_;
 
    // File descriptor.
    int fd_;
@@ -210,30 +219,40 @@ class D2SEditor {
    Character *c_;
 };
 
-D2SEditor::D2SEditor(const string& filename) {
+D2SEditor::D2SEditor(const string& filename):
+  data_(nullptr) {
+
   fd_ = Open(filename.c_str());
   fsz_ = GetFileSize(filename.c_str());
 
   ReadData();
   ParseChar();
   PrintChar();
-  cout << "Write char" << endl;
   WriteChar();
+
+  ReadData();
+  ParseChar();
+  cout << "Edited char: " << endl;
+  PrintChar();
 }
 
 D2SEditor::~D2SEditor() {
-  delete data_;
+  delete []data_;
   delete c_;
   close(fd_);
 }
 
 void D2SEditor::ReadData() {
-  data_ = new char[fsz_];
+  if (data_) {
+    delete []data_;
+  }
+  data_ = new uint8_t[fsz_];
   if (!data_) {
     cout << "Unable to allocate memory" << endl;
     exit(1);
   }
 
+  lseek(fd_, 0, SEEK_SET);
   if (read(fd_, data_, fsz_) != fsz_) {
     cout << "Unable to read file" << endl;
     exit(1);
@@ -251,9 +270,11 @@ void D2SEditor::PrintChar() {
 }
 
 void D2SEditor::WriteChar() {
-  if (c_) {
-    c_->Write();
-  }
+  uint8_t buf[100];
+  memset(buf, 0, 100);
+  const int bytes_written = c_->WriteInto(buf);
+
+  WriteNewStats(buf, bytes_written);
 }
 
 int D2SEditor::GetD2Checksum() {
@@ -268,6 +289,18 @@ int D2SEditor::GetD2Checksum() {
      cksum = (cksum << 1) + data_byte + (cksum < 0);
    }
    return cksum;
+}
+
+void D2SEditor::WriteNewStats(const uint8_t *const buf, const int sz) {
+  if (lseek(fd_, 767, SEEK_SET)!= 767) {
+    cout << "Unable to write checksum to file" << endl;
+    exit(1);
+  }
+
+  if (write(fd_, (void*)buf, sz) != sz) {
+    cout << "Unable to write to file" << endl;
+    exit(1);
+  }
 }
 
 void D2SEditor::WriteNewChecksum() {
@@ -285,21 +318,24 @@ void D2SEditor::WriteNewChecksum() {
   }
 }
 
-Character::Character(const char *const data, const int size) {
-  Parse(data, size);
+Character::Character(uint8_t *data, const int size):
+  data_(data) {
+  Parse(data_, size);
 }
 
 class BitBuffer {
   public:
     explicit BitBuffer(uint8_t *data) :
-       data_(data),
-       bits_remaining_(0) {
+      data_(data),
+      bits_remaining_(0),
+      num_bytes_proc_(0) {
     }
 
     BitBuffer(uint8_t *data, const bool load_first):
       data_(data),
       cur_(*data),
-      bits_remaining_(8) {
+      bits_remaining_(8),
+      num_bytes_proc_(1) {
 
     }
 
@@ -317,6 +353,7 @@ class BitBuffer {
         // Advance the pointer to the next byte.
         ++data_;
         bits_remaining_ = 8;
+        ++num_bytes_proc_;
       }
 
       int num_read_bits = num_bits;
@@ -364,6 +401,7 @@ class BitBuffer {
       // We need to write to the next byte.
       ++data_;
       bits_remaining_ = 8;
+      ++num_bytes_proc_;
     }
 
     int num_write_bits = num_bits;
@@ -388,6 +426,10 @@ class BitBuffer {
     }
   }
 
+  int num_bytes_proc() const {
+    return num_bytes_proc_;
+  }
+
   private:
     // Pointer to the next byte to read.
     uint8_t *data_;
@@ -397,9 +439,12 @@ class BitBuffer {
 
     // The current byte.
     uint8_t cur_;
+
+    // Number of bytes processed.
+    int num_bytes_proc_;
 };
 
-void Character::Parse(const char *const data, const int size) {
+void Character::Parse(uint8_t *data, const int size) {
   d2s_t *pdata = (d2s_t *)(data);
 
   // Parse some of the header.
@@ -409,9 +454,9 @@ void Character::Parse(const char *const data, const int size) {
   name_ = string(pdata->header + kNameOffset);
   class_ = kClasses[pdata->header[kClassOffset]];
 
-  unsigned short *attrib_bytes = (unsigned short *)pdata->stats;
+  uint8_t *attrib_bytes = (uint8_t *)pdata->stats;
   // Skip the first 16 bits - '0x6667'
-  ++attrib_bytes;
+  attrib_bytes +=2;
 
   BitBuffer b((uint8_t *)attrib_bytes);
 
@@ -428,25 +473,34 @@ void Character::Parse(const char *const data, const int size) {
     val = ReverseBits(b.ReadBits(kAttribLen[attrib]), kAttribLen[attrib]);
     attrib_map_[attrib] = val >> kAttribTransform[attrib];
   }
+  cout << "Processed " << b.num_bytes_proc() << " bytes" << endl;
 }
 
-void Character::Write() {
+int Character::WriteInto(uint8_t *data) {
+  BitBuffer b(data, true /* load_first */);
 
-  uint8_t buf[40];
-  memset(buf, 0, 40);
-  BitBuffer b(buf, true /* load_first */);
   for (auto attrib: attrib_map_) {
     b.WriteBits(attrib.first, kAttribIdLen);
-    b.WriteBits(attrib.second << kAttribTransform[attrib.first], kAttribLen[attrib.first]);
+    int val = attrib.second << kAttribTransform[attrib.first];
+    const int bit_len = kAttribLen[attrib.first];
+    if (attrib.first < 4) {
+      val = edits[attrib.first];
+    }
+    b.WriteBits(val, bit_len);
   }
+  b.WriteBits(0xff, 8);
+  b.WriteBits(0x1, 1);
 
-  for (int ii = 1; ii <= 40; ++ii) {
-    cout << ToBinaryString(buf[ii - 1]) << " ";
+/*  cout << "Wrote " << b.num_bytes_proc() << " bytes" << endl;
+  for (int ii = 1; ii <= 100; ++ii) {
+    cout << ToBinaryString(data[ii - 1]) << " ";
     if (!(ii % 5)) {
       cout << endl;
     }
   }
   cout << endl;
+*/
+  return b.num_bytes_proc();
 }
 
 void Character::Print() {
