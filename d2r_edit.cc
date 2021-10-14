@@ -158,6 +158,7 @@ class Character {
 
     void Print();
 
+    void Write();
   private:
     void Parse(const char *data, const int size);
 
@@ -182,6 +183,8 @@ class D2SEditor {
 
    // Print the character stats.
    void PrintChar();
+
+   void WriteChar();
 
  private:
    // Get the checksum of 'data_' using the Diablo-2 algo.
@@ -214,6 +217,8 @@ D2SEditor::D2SEditor(const string& filename) {
   ReadData();
   ParseChar();
   PrintChar();
+  cout << "Write char" << endl;
+  WriteChar();
 }
 
 D2SEditor::~D2SEditor() {
@@ -242,6 +247,12 @@ void D2SEditor::ParseChar() {
 void D2SEditor::PrintChar() {
   if (c_) {
     c_->Print();
+  }
+}
+
+void D2SEditor::WriteChar() {
+  if (c_) {
+    c_->Write();
   }
 }
 
@@ -280,11 +291,18 @@ Character::Character(const char *const data, const int size) {
 
 class BitBuffer {
   public:
-    explicit BitBuffer(char *data) :
+    explicit BitBuffer(uint8_t *data) :
        data_(data),
        bits_remaining_(0) {
+    }
+
+    BitBuffer(uint8_t *data, const bool load_first):
+      data_(data),
+      cur_(*data),
+      bits_remaining_(8) {
 
     }
+
     ~BitBuffer() = default;
 
     unsigned int ReadBits(const int num_bits) {
@@ -295,7 +313,7 @@ class BitBuffer {
 
       if (bits_remaining_ == 0) {
         // We need to read from the next byte.
-        cur_ = ReverseBits(data_[0], sizeof(char) << 3);
+        cur_ = ReverseBits(data_[0], sizeof(uint8_t) << 3);
         // Advance the pointer to the next byte.
         ++data_;
         bits_remaining_ = 8;
@@ -332,15 +350,53 @@ class BitBuffer {
       return r;
   }
 
+  void WriteBits(const unsigned int val, const int num_bits) {
+    //cout << "Writing -- " << val << ", " << num_bits << endl;
+    unsigned int r = val;
+
+    if (num_bits == 0) {
+      return;
+    }
+
+    // TODO: Realloc if we are running out of space in the buffer.
+
+    if (bits_remaining_ == 0) {
+      // We need to write to the next byte.
+      ++data_;
+      bits_remaining_ = 8;
+    }
+
+    int num_write_bits = num_bits;
+    if (num_write_bits > bits_remaining_) {
+      num_write_bits = bits_remaining_;
+    }
+
+    const int shift = (sizeof(uint8_t) << 3) - bits_remaining_;
+    uint8_t c = *data_;
+
+    //cout << "Prev C: " << ToBinaryString(c) << " Shift " << shift << " val: " << r << endl;
+    c |= (r << shift);
+    //cout << "C: " << ToBinaryString(c) << endl;
+    *data_ = c;
+
+    bits_remaining_ -= num_write_bits;
+
+    r >>= num_write_bits;
+    num_write_bits = num_bits - num_write_bits;
+    if (num_write_bits > 0) {
+      WriteBits(r, num_write_bits);
+    }
+  }
+
   private:
     // Pointer to the next byte to read.
-    const char *data_;
+    uint8_t *data_;
 
     // Number of bits remaining in the current byte.
     int bits_remaining_;
 
     // The current byte.
-    unsigned char cur_;
+    uint8_t cur_;
 };
 
 void Character::Parse(const char *const data, const int size) {
@@ -357,7 +413,7 @@ void Character::Parse(const char *const data, const int size) {
   // Skip the first 16 bits - '0x6667'
   ++attrib_bytes;
 
-  BitBuffer b((char *)attrib_bytes);
+  BitBuffer b((uint8_t *)attrib_bytes);
 
   for (;;) {
     uint16_t attrib;
@@ -372,6 +428,25 @@ void Character::Parse(const char *const data, const int size) {
     val = ReverseBits(b.ReadBits(kAttribLen[attrib]), kAttribLen[attrib]);
     attrib_map_[attrib] = val >> kAttribTransform[attrib];
   }
+}
+
+void Character::Write() {
+
+  uint8_t buf[40];
+  memset(buf, 0, 40);
+  BitBuffer b(buf, true /* load_first */);
+  for (auto attrib: attrib_map_) {
+    b.WriteBits(attrib.first, kAttribIdLen);
+    b.WriteBits(attrib.second << kAttribTransform[attrib.first], kAttribLen[attrib.first]);
+  }
+
+  for (int ii = 1; ii <= 40; ++ii) {
+    cout << ToBinaryString(buf[ii - 1]) << " ";
+    if (!(ii % 5)) {
+      cout << endl;
+    }
+  }
+  cout << endl;
 }
 
 void Character::Print() {
