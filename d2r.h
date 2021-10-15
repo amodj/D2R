@@ -90,8 +90,8 @@ namespace d2r {
   };
 
   typedef struct __attribute__((__packed__)) {
-      char header[kHeaderSize];
-      char stats[0];
+    uint8_t header[kHeaderSize];
+    char stats[0];
   } d2s_t;
 
 } // namespace

@@ -4,6 +4,7 @@
 #include <bitset>
 #include <cstring>
 #include <string>
+#include <sstream>
 
 namespace d2r { namespace util {
 
