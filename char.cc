@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include <fstream>
 #include "bit_buffer.h"
 #include "char.h"
 #include "d2r.h"
@@ -9,6 +9,28 @@ using namespace d2r;
 using namespace d2r::util;
 
 const int edits[] = { 1023, 123, 512, 313};
+
+namespace {
+  // Generate attribute-edit map from "edit.cfg" file.
+  map<uint16_t, unsigned int> AttributeEditMap() {
+    ifstream in_file("edit.cfg");
+    string line;
+
+    map<uint16_t, unsigned int> edit_map;
+
+    while (getline(in_file, line)) {
+      istringstream in_line(line);
+      string key;
+      if(getline(in_line, key, '=') ) {
+        string value;
+        if(getline(in_line, value)) {
+          edit_map[kAttributeMap.at(key)] = atoi(value.c_str());
+        }
+      }
+    }
+    return edit_map;
+  }
+} // anonymous
 
 namespace d2r {
 
@@ -50,15 +72,24 @@ void Character::Parse(uint8_t *data, const int size) {
 }
 
 int Character::WriteInto(uint8_t *data) {
+
+  const map<uint16_t, unsigned int> edit_map = AttributeEditMap();
+
   BitBuffer b(data, true /* load_first */);
 
   for (auto attrib: attrib_map_) {
     b.WriteBits(attrib.first, kAttribIdLen);
-    int val = attrib.second << kAttribTransform[attrib.first];
+    int val = attrib.second;
     const int bit_len = kAttribLen[attrib.first];
-    if (attrib.first < 4) {
-      val = edits[attrib.first];
+
+    if (edit_map.find(attrib.first) != edit_map.end()) {
+      const unsigned int edit_val = edit_map.at(attrib.first);
+      if (edit_val > 0) {
+        val = edit_val;
+      }
     }
+
+    val <<= kAttribTransform[attrib.first];
     b.WriteBits(val, bit_len);
   }
   b.WriteBits(0xff, 8);

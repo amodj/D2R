@@ -30,7 +30,7 @@ namespace d2r {
   // Attributes of a character.
   static const std::string kAttributes[] = {
       "Strength",
-      "Engergy",
+      "Energy",
       "Dexterity",
       "Vitality",
       "Stats left",
@@ -45,6 +45,26 @@ namespace d2r {
       "Experience",
       "Gold",
       "Stash Gold"
+  };
+
+  // Map from attribute name to the attribute id.
+  static const std::map<std::string, uint16_t> kAttributeMap = {
+      { "Strength", 0 },
+      { "Energy", 1 },
+      { "Dexterity", 2 },
+      { "Vitality", 3 },
+      { "Stats left", 4 },
+      { "Skills left", 5 },
+      { "HP", 6 },
+      { "Max HP", 7 },
+      { "Mana", 8 },
+      { "Max Mana", 9 },
+      { "Stamina", 10 },
+      { "Max Stamina", 11 },
+      { "Level", 12 },
+      { "Experience", 13 },
+      { "Gold", 14 },
+      { "Stash Gold", 15 }
   };
 
   // Lengths of the attributes stored in the file.
