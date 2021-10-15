@@ -10,148 +10,16 @@
 #include <sstream>
 #include <unistd.h>
 
+#include "d2r.h"
+#include "util.h"
+
 using namespace std;
 using namespace std::placeholders;
 
+using namespace d2r;
+using namespace d2r::util;
+
 const int edits[] = { 1023, 123, 512, 313};
-
-namespace {
-  // Return litte-endian of a given integer.
-  template <typename T>
-  T LittleEndian(const T num) {
-    T le = 0;
-    for (int ii = 0; ii < sizeof(T); ++ii) {
-      unsigned char b = num >> ((sizeof(T) - ii - 1) << 3) & 0xff;
-      le |= b << (ii << 3);
-    }
-    return le;
-  }
-
-unsigned short LittleEndian(unsigned short num);
-unsigned int LittleEndian(unsigned int num);
-
-  int Open(const char *file) {
-    const int fd = open(file, O_RDWR);
-    if (fd < 0) {
-      cout << "Unable to open file" << endl;
-      exit(1);
-    }
-    return fd;
-  }
-
-  int GetFileSize(const char *const filename) {
-    struct stat st;
-    stat(filename, &st);
-    return st.st_size;
-  }
-
-  template<typename T>
-  static string ToBinaryString(const T& x) {
-    stringstream ss;
-    ss << bitset<sizeof(T) * 8>(x);
-    return ss.str();
-  }
-
-  unsigned int ReverseBits(const unsigned int in_num, const int num_bits) {
-    unsigned int result = 0;
-    unsigned int num = in_num;
-    for (int ii = 0; ii < num_bits; ++ii) {
-       result <<= 1;
-       result |= (num & 0x01);
-       num >>= 1;
-    }
-    return result;
-  }
-} // anonymous namespace.
-
-static const int kHeaderSize = 765;
-static const int kCksumOffset = 12;
-static const int kCksumSize = sizeof(int);
-static const int kNameOffset = 20; // Name is 20 bytes from the start.
-static const int kNameLen = 16; // Max length of the name is 16 bytes.
-static const int kClassOffset = 40; // Class is 40 bytes from the start.
-static const int kClassLen = 1;
-
-static const int kAttribIdLen = 9; // Attributes are stored in 9 bits.
-static const int kInvalidAttrib = 511; // 9 bits of all 1s.
-
-// Types of classes in D2R.
-string kClasses[] = {
-  "Amazon",
-  "Sorceress",
-  "Necromancer",
-  "Paladin",
-  "Barbarian",
-  "Druid",
-  "Assasin"
-};
-
-// Attributes of a character.
-static const string kAttributes[] = {
-  "Strength",
-  "Engergy",
-  "Dexterity",
-  "Vitality",
-  "Stats left",
-  "Skills left",
-  "HP",
-  "Max HP",
-  "Mana",
-  "Max Mana",
-  "Stamina",
-  "Max Stamina",
-  "Level",
-  "Experience",
-  "Gold",
-  "Stash Gold"
-};
-
-// Lengths of the attributes stored in the file.
-static const int kAttribLen[] = {
-  10, // Strength
-  10, // Energy
-  10, // Dex
-  10, // Vit
-  10, // Stats left
-  8, // Skills left
-  21, // HP
-  21, // Max HP
-  21, // Mana
-  21, // Max Mana
-  21, // Stamina
-  21, // Max stamina
-  7, // Level
-  32, // Experience,
-  25, // Gold
-  25 // Stashed Gold
-};
-
-// Attribute values obtained should be right-shifted (reading) or
-// left-shifted (writing) by the respective number to get the
-// real value.
-static const uint8_t kAttribTransform[] = {
-  0, // Strength
-  0, // Energy
-  0, // Dex
-  0, // Vit
-  0, // Stats left
-  0, // Skills left
-  8, // HP
-  8, // Max HP
-  8, // Mana
-  8, // Max Mana
-  8, // Stamina
-  8, // Max stamina
-  0, // Level
-  0, // Experience,
-  0, // Gold
-  0 // Stashed Gold
-};
-
-typedef struct __attribute__((__packed__)) {
-  char header[kHeaderSize];
-  char stats[0];
-} d2s_t;
 
 class Character {
   public:
@@ -527,4 +395,3 @@ int main(const int argc, char *const argv[]) {
 
   return 0;
 }
-
