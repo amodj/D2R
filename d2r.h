@@ -89,6 +89,7 @@ namespace d2r {
       0 // Stashed Gold
   };
 
+  // Structure of a .d2s file.
   typedef struct __attribute__((__packed__)) {
     uint8_t header[kHeaderSize];
     char stats[0];
