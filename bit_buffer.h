@@ -1,8 +1,9 @@
+/* The BitBuffer class allows one to read and write bits to a buffer. */
+
 #ifndef __BIT_BUFFER_H_
 #define __BIT_BUFFER_H_
 
 #include "util.h"
-/* The BitBuffer class allows one to read and write bits to a buffer. */
 
 namespace d2r { namespace util {
 
