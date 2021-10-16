@@ -34,13 +34,12 @@ namespace {
 
 namespace d2r {
 
-Character::Character(uint8_t *data, const int size):
+Character::Character(uint8_t *data):
   data_(data) {
-  Parse(data_, size);
 }
 
-void Character::Parse(uint8_t *data, const int size) {
-  d2s_t *pdata = (d2s_t *)(data);
+int Character::Parse() {
+  d2s_t *pdata = (d2s_t *)(data_);
 
   // Parse some of the header.
   uint8_t *header = pdata->header;
@@ -61,39 +60,51 @@ void Character::Parse(uint8_t *data, const int size) {
 
     attrib = ReverseBits(b.ReadBits(kAttribIdLen), kAttribIdLen);
     if (attrib == kInvalidAttrib) {
-      // Not the most correct way to do this, but it will work fine because
-      // although attributes are stored in 9 bits, only 4 are ever really used.
+      // Reached the end of stats.
       break;
     }
     val = ReverseBits(b.ReadBits(kAttribLen[attrib]), kAttribLen[attrib]);
     attrib_map_[attrib] = val >> kAttribTransform[attrib];
   }
   cout << "Processed " << b.num_bytes_processed() << " bytes" << endl;
+  return b.num_bytes_processed();
 }
 
 int Character::WriteInto(uint8_t *data) {
-
-  const map<uint16_t, unsigned int> edit_map = AttributeEditMap();
+  map<uint16_t, unsigned int> edit_map = AttributeEditMap();
 
   BitBuffer b(data, true /* load_first */);
 
+  // First write anything that's already present in the character stats,
+  // overwriting it with values from edit.cfg.
   for (auto attrib: attrib_map_) {
     b.WriteBits(attrib.first, kAttribIdLen);
     int val = attrib.second;
-    const int bit_len = kAttribLen[attrib.first];
+    const int len = kAttribLen[attrib.first];
 
     if (edit_map.find(attrib.first) != edit_map.end()) {
       const unsigned int edit_val = edit_map.at(attrib.first);
       if (edit_val > 0) {
         val = edit_val;
+        edit_map.erase(attrib.first);
       }
     }
-
     val <<= kAttribTransform[attrib.first];
-    b.WriteBits(val, bit_len);
+    b.WriteBits(val, len);
   }
-  b.WriteBits(0xff, 8);
-  b.WriteBits(0x1, 1);
+
+  // Any  remaining attributes which we want to add to the character go here.
+  for (auto attrib : edit_map) {
+    const int val = attrib.second << kAttribTransform[attrib.first];
+    const int len = kAttribLen[attrib.first];
+    if (val > 0) {
+      b.WriteBits(attrib.first, kAttribIdLen);
+      b.WriteBits(val, len);
+    }
+  }
+
+  // Mark the end of attributes.
+  b.WriteBits(kInvalidAttrib, kAttribIdLen);
 
   return b.num_bytes_processed();
 }

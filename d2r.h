@@ -6,6 +6,7 @@
 namespace d2r {
 
   static const int kHeaderSize = 765; // 0x2FD
+  static const int kFileSizeOffset = 8;
   static const int kCksumOffset = 12;
   static const int kCksumSize = sizeof(int);
   static const int kNameOffset = 20; // Name is 20 bytes from the start.
@@ -14,7 +15,7 @@ namespace d2r {
   static const int kClassLen = 1;
 
   static const int kAttribIdLen = 9; // Attributes are stored in 9 bits.
-  static const int kInvalidAttrib = 511; // 9 bits of all 1s.
+  static const int kInvalidAttrib = 0x1FF; // 9 bits of all 1s.
 
   // Types of classes in D2R.
   static const std::string kClasses[] = {

@@ -8,19 +8,18 @@ namespace d2r {
 
 class Character {
   public:
-    Character(uint8_t *data, int size);
+    Character(uint8_t *data);
     ~Character() = default;
+
+    // Parse the character attributes from buffer 'data_' and
+    // store it in-memory. Return the number of bytes processed.
+    int Parse();
 
     // Print the character details on the console.
     void Print();
 
     // Write the character's attributes into the buffer pointed to by 'buf'.
     int WriteInto(uint8_t *buf);
-
-  private:
-    // Parse the character attributes from buffer 'data' of size 'size' and
-    // store it in-memory.
-    void Parse(uint8_t *data, int size);
 
   private:
     // Raw data of the character.
