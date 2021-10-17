@@ -103,7 +103,6 @@ class BitBuffer {
     uint8_t c = *data_;
 
     c |= (r << shift);
-    //cout << "C: " << ToBinaryString(c) << endl;
     *data_ = c;
 
     bits_remaining_ -= num_write_bits;

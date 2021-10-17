@@ -130,7 +130,6 @@ void D2SEditor::WriteNewStats() {
   // Write the character stats now.
   bytes_written += c_->WriteInto(new_data + kHeaderSize + 2);
 
-
   // Remaining bytes to be written.
   const int remaining_size = fsz_ - (kHeaderSize + 2 + orig_stats_size_);
   const int remaining_offset = kHeaderSize + 2 + orig_stats_size_;
