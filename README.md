@@ -86,6 +86,7 @@ For example, if the bit-stream in the file is : `00000000 00011110 00001000 1001
 ^        ^
 ```
 Gives: `000000000`
+
 3. Reverse the 9 bits: `000000000` gives the attribute_id: 0 - `Strength`
 4. Strength value is 10 bits, so read the next `10 bits`:
 ``` text
@@ -93,6 +94,7 @@ Gives: `000000000`
           ^         ^
 ```
 gives: `1111000000`
+
 5. Reverse the 10 bits: `0000001111` : 15
 6. Read the next 9 bits for the next attribute:
 ``` text
@@ -100,6 +102,7 @@ gives: `1111000000`
                      ^        ^
 ```
 gives: `100000000`
+
 7. Reverse the 9 bits read: `000000001` gives the attribute_id: 1 - `Energy`
 8. Read the next 10 bits... and so on, until we find the attribute_id: `111111111` or `0x1ff`
 
