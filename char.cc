@@ -1,3 +1,7 @@
+/*
+ * Author: Amod Jaltade (amodjaltade@gmail.com)
+ */
+
 #include <iostream>
 #include <fstream>
 #include "bit_buffer.h"

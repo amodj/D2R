@@ -1,3 +1,9 @@
+/*
+ * A tool to read/edit Diablo 2 save files.
+ *
+ * Author: Amod Jaltade (amodjaltade@gmail.com)
+ */
+
 #include <assert.h>
 #include <fcntl.h>
 #include <iostream>

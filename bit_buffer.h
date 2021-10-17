@@ -1,4 +1,8 @@
-/* The BitBuffer class allows one to read and write bits to a buffer. */
+/*
+ * The BitBuffer class allows one to read and write bits to an in-memory buffer.
+ *
+ * Author: Amod Jaltade (amodjaltade@gmail.com)
+ */
 
 #ifndef __BIT_BUFFER_H_
 #define __BIT_BUFFER_H_

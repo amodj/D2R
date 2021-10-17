@@ -1,3 +1,7 @@
+/*
+ * Author: Amod Jaltade (amodjaltade@gmail.com)
+ */
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <iostream>

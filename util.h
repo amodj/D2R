@@ -1,3 +1,9 @@
+/*
+ * Some utility functions for the tool.
+ *
+ * Author: Amod Jaltade (amodjaltade@gmail.com)
+ */
+
 #ifndef __UTIL_H_
 #define __UTIL_H_
 

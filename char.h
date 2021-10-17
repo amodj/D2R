@@ -1,3 +1,9 @@
+/*
+ * The Character class describes a character along with its attributes.
+ *
+ * Author: Amod Jaltade (amodjaltade@gmail.com)
+ */
+
 #ifndef __CHAR_H_
 #define __CHAR_H_
 

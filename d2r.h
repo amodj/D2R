@@ -1,3 +1,9 @@
+/*
+ * The various constants used in D2S save files.
+ *
+ * Author: Amod Jaltade (amodjaltade@gmail.com)
+ */
+
 #ifndef __D2R_H_
 #define __D2R_H_
 
