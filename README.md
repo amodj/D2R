@@ -1,7 +1,8 @@
-# D2R Save file reader/editor
+# D2R Save file reader/editor (OFFLINE only)
 
 This is a D2S file (Diablo Save file) reader and editor.
-Implemented completely in C++ - purely out of curiosity and as a hobby.
+Implemented completely in C++ - purely out of curiosity and as a hobby for
+reading and editing stats of OFFLINE characters.
 
 ## TL;DR
 How to use the tool: [Usage](#usage)
@@ -10,8 +11,9 @@ How to use the tool: [Usage](#usage)
 2. Edit the .d2S file with any attribute values desired.
 
 ## What this tool cannot do:
-1. Add/edit any specific skills.
-2. Add/edit any specific items.
+1. Edit any online character.
+2. Add/edit any specific skills.
+3. Add/edit any specific items.
 
 ## Save file format
 A D2S file consists of a 765 byte header followed by the character attributes, skills and then items.
