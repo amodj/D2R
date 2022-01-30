@@ -166,4 +166,4 @@ Gold: 8000
 Stash Gold: 1000
 ----------------------------
 ```
-![Character Screenshot](https://imgur.com/a/OJkxAav)
+![Character Screenshot](D2.png)
