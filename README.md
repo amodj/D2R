@@ -13,7 +13,8 @@ How to use the tool: [Usage](#usage)
 ## What this tool cannot do:
 1. Edit any online character.
 2. Add/edit any specific skills.
-3. Add/edit any specific items.
+3:$
+. Add/edit any specific items.
 
 ## Save file format
 A D2S file consists of a 765 byte header followed by the character attributes, skills and then items.
@@ -139,42 +140,30 @@ Example:
 
 ``` text
 $ bin/d2r ../Diablo\ II\ Resurrected/N_one.d2s
-Processed 36 bytes
+...
+...
+...
 ----------------------------
-Name: N_one
-Class: Necromancer
-----------------------------
-Strength: 1023
-Energy: 25
-Dexterity: 25
-Vitality: 15
-HP: 45
-Max HP: 45
-Mana: 57
-Max Mana: 57
-Stamina: 79
-Max Stamina: 79
-Level: 1
-----------------------------
-Processed 49 bytes
+Processed 54 bytes
 ----------------------------
 Name: N_one
 Class: Necromancer
 ----------------------------
 Strength: 512
-Energy: 230
-Dexterity: 413
-Vitality: 872
+Energy: 512
+Dexterity: 512
+Vitality: 0
 Stats left: 14
 Skills left: 14
-HP: 500
 Max HP: 500
 Mana: 500
 Max Mana: 500
 Stamina: 199
 Max Stamina: 199
 Level: 1
+Experience: 104214
 Gold: 8000
 Stash Gold: 1000
 ----------------------------
 ```
+![Character Screenshot](https://imgur.com/a/OJkxAav)
